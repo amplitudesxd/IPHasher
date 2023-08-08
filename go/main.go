@@ -95,16 +95,16 @@ func main() {
 func processIPs(startIP, endIP uint64, targetHash []byte, writer *barWriter) {
 	defer wg.Done()
 
-	h512 := sha256.New()
+	h256 := sha256.New()
 
 	for ip := startIP; ip <= endIP; ip++ {
 		if done {
 			return
 		}
 		
-		h512.Reset()
+		h256.Reset()
 		ipString := fmt.Sprintf("%d.%d.%d.%d", byte(ip>>24), byte(ip>>16), byte(ip>>8), byte(ip))
-		h512.Write([]byte(ipString))
+		h256.Write([]byte(ipString))
 		hash := h512.Sum(nil)
 
 		if string(hash) == string(targetHash) {
