@@ -66,9 +66,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	cores := runtime.NumCPU()                  // Get the number of CPU cores available
-	minIP := uint64(0x00000000)                // Minimum IP address value
-	maxIP := uint64(0xFFFFFFFF)                // Maximum IP address value
+	cores := runtime.NumCPU()   // Get the number of CPU cores available
+	minIP := uint64(0x00000000) // Minimum IP address value
+	maxIP := uint64(0xFFFFFFFF) // Maximum IP address value
 	totalIPs := maxIP - minIP + 1
 	writer := &barWriter{totalIPs, 0, time.Now()}
 
@@ -101,11 +101,11 @@ func processIPs(startIP, endIP uint64, targetHash []byte, writer *barWriter) {
 		if done {
 			return
 		}
-		
+
 		h256.Reset()
 		ipString := fmt.Sprintf("%d.%d.%d.%d", byte(ip>>24), byte(ip>>16), byte(ip>>8), byte(ip))
 		h256.Write([]byte(ipString))
-		hash := h512.Sum(nil)
+		hash := h256.Sum(nil)
 
 		if string(hash) == string(targetHash) {
 			fmt.Printf("\nFound! IP: %d.%d.%d.%d\n", byte(ip>>24), byte(ip>>16), byte(ip>>8), byte(ip))
