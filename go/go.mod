@@ -1,3 +1,3 @@
-module example.com/mod
+module ip-brute
 
-go 1.14
+go 1.21
