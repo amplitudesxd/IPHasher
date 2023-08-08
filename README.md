@@ -6,7 +6,7 @@ A project to brute force an SHA256 hash of an IP address as fast as possible, wi
 
 ### Go
 
-Author: [Amplitudes](https://github.com/amplitudesxd)
+Author: [Amplitudes](https://github.com/amplitudesxd) + [Rowin](https://github.com/GitRowin)
 
 ### Node
 
