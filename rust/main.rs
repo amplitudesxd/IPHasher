@@ -93,15 +93,20 @@ async fn main() -> Result<()> {
             let est_remaining_secs = remaining_ips as f64 / ips_per_sec;
 
             println!(
-                "Progress: {:.2}%, Speed: {:.2} ips/s, Remaining: {:.2}s",
-                progress, ips_per_sec, est_remaining_secs
+                "{}/{} IPs | {:.2} IPs/sec | Progress: {:.2}% | ETA: {:.2}s | Elapsed: {:.2}s",
+                processed,
+                total_ips,
+                ips_per_sec,
+                progress,
+                est_remaining_secs,
+                now.elapsed().as_secs_f64()
             );
 
             if done.load(Ordering::Relaxed) {
                 break;
             }
 
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_millis(100)).await;
         }
     });
 
