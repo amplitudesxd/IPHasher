@@ -12,4 +12,4 @@ Author: [Amplitudes](https://github.com/amplitudesxd)
 
 ## Rust
 
-Author: [Vape](https://github.com/vaperion)
+Author: [vaperion](https://github.com/vaperion)
