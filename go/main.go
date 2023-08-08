@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -51,6 +52,9 @@ func printProgressBar(writer *barWriter) {
 }
 
 func main() {
+	debug.SetGCPercent(-1)
+	debug.SetMemoryLimit(1024 * 1024 * 1024) // 1 GiB
+
 	now := time.Now()
 
 	// Check for command line argument
