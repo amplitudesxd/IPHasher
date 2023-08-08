@@ -1,0 +1,15 @@
+[package]
+name = "ip-brute"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "ip-brute"
+path = "main.rs"
+
+[dependencies]
+anyhow = "1.0.72"
+hex = "0.4.3"
+num_cpus = "1.16.0"
+sha2 = "0.10.7"
+tokio = { version = "1.29.1", features = ["full"] }
