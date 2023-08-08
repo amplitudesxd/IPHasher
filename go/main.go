@@ -19,12 +19,12 @@ var done bool
 
 type barWriter struct {
 	totalIPs     uint64
-	processedIPs uint64
+	processedIPs atomic.Uint64
 	startTime    time.Time
 }
 
 func (w *barWriter) updateProgressBar() {
-	processedIPs := atomic.LoadUint64(&w.processedIPs)
+	processedIPs := w.processedIPs.Load()
 
 	ipsPerSec := float64(processedIPs) / time.Since(w.startTime).Seconds()
 	if math.IsInf(ipsPerSec, 1) {
@@ -40,13 +40,9 @@ func (w *barWriter) updateProgressBar() {
 		processedIPs, w.totalIPs, ipsPerSec, progress, estimatedTimeRemaining.Round(time.Second), time.Since(w.startTime).Round(time.Second))
 }
 
-func printProgressBar(writer *barWriter) {
-	for {
-		if done {
-			return
-		}
-
-		writer.updateProgressBar()
+func (w *barWriter) startProgressBarUpdater() {
+	for !done {
+		w.updateProgressBar()
 		time.Sleep(time.Millisecond * 100)
 		fmt.Print("\r")
 	}
@@ -56,11 +52,9 @@ func main() {
 	debug.SetGCPercent(-1)
 	debug.SetMemoryLimit(1024 * 1024 * 1024) // 1 GiB
 
-	now := time.Now()
-
 	// Check for command line argument
 	if len(os.Args) != 2 {
-		fmt.Println("Please provide a SHA256 hash.")
+		fmt.Println("Please provide a SHA-256 hash.")
 		os.Exit(1)
 	}
 
@@ -75,13 +69,15 @@ func main() {
 	minIP := uint64(0x00000000) // Minimum IP address value
 	maxIP := uint64(0xFFFFFFFF) // Maximum IP address value
 	totalIPs := maxIP - minIP + 1
-	writer := &barWriter{totalIPs, 0, time.Now()}
-
-	go printProgressBar(writer)
 
 	// Calculate the IP address range for each goroutine
 	step := totalIPs / uint64(cores)
 	startIP := minIP
+
+	now := time.Now()
+
+	writer := &barWriter{totalIPs: totalIPs, startTime: now}
+	go writer.startProgressBarUpdater()
 
 	// Launch goroutines based on the number of CPU cores
 	for i := 0; i < cores; i++ {
@@ -122,7 +118,7 @@ func processIPs(startIP, endIP uint64, targetHash []byte, writer *barWriter) {
 			return
 		}
 
-		atomic.AddUint64(&writer.processedIPs, 1) // Increment the processedIPs field safely
+		writer.processedIPs.Add(1)
 	}
 }
 
