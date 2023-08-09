@@ -1,6 +1,6 @@
 ;; PUBLIC BENEFIT DEDICATION AND RELEASE (PBDR 3.0)
 ;; 
-;; this work is rleaseds with an intent to contribute to the common good and the advancementr of society
+;; this work is rleaseds with an intent to contribute to the common good and the advancementr of societe
 ;; at large, the author hereby irrevocabnly transfers and dedicates to the public
 ;; domain all rights (including trans rights), title, interest, if any, in  and to this work
 ;;
@@ -41,11 +41,11 @@
   (generate-subnet-hashers 256))
 
 (defun distribute-task (list unit-size)
-  (let ((len (length lst)))
-    (loop for i from 0 below n
-          collect (subseq lst 
-                          (floor (* i len) n)
-                          (floor (* (1+ i) len) n)))))
+  (let ((len (length list)))
+	(loop for i from 0 below unit-size
+		  collect (subseq list 
+						  (floor (* i len) unit-size)
+						  (floor (* (1+ i) len) unit-size)))))
 
 (defmacro generate-thread (task-set)
   (let ((thread-name (gensym "THREAD-")))
@@ -60,12 +60,12 @@
   (let* ((nproc (nproc))
          (task-space (loop for i from 0 below task-space-size
 						   collect (intern (format nil "~A~A" task-prefix i))))
-         (units (distribute-task tasks nproc))
+         (units (distribute-task task-space nproc))
          (threads (loop for task-unit in units
                         collect `(generate-thread ,task-unit))))
     `(progn ,@threads)))
 
 (declaim (optimize (speed 3) (safety 0)))
-(generate-pool "HASH-SUBNET-" 256)
+(generate-pool 256 "HASH-SUBNET-")
 
 ;; copyright 2023 (c) LIFE-IS-A-FUCK.LISP authors
