@@ -26,7 +26,8 @@ class ProgressBar {
     const ipsRemaining = this.totalIPs - processedIPs;
     const estimatedTimeRemaining = ipsRemaining / ipsPerSec;
 
-    console.log(
+    process.stdout.write('\r\x1b[K');
+    process.stdout.write(
       `${processedIPs}/${
         this.totalIPs
       } IPs | ${ipsPerSecFormatted} IPs/sec | Progress: ${progress.toFixed(
