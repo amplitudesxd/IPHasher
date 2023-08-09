@@ -3,6 +3,15 @@ name = "ip-brute"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+opt-level = 3
+debug = false
+strip = true
+lto = true
+overflow-checks = false
+debug-assertions = false
+codegen-units = 1
+
 [[bin]]
 name = "ip-brute"
 path = "main.rs"
