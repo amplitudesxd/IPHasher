@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -43,7 +44,7 @@ func (w *barWriter) updateProgressBar() {
 func (w *barWriter) startProgressBarUpdater() {
 	for !done {
 		w.updateProgressBar()
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Second)
 		fmt.Print("\r")
 	}
 }
@@ -98,34 +99,71 @@ func processIPs(startIP, endIP uint64, targetHash []byte, writer *barWriter) {
 
 	h256 := sha256.New()
 
+	// 1.1.1.1 = 7 bytes
+	// 255.255.255.255 = 15 bytes
+	// 15 - 7 + 1 = 9 length possibilities
+	cache := make([][]byte, 9)
+
+	for i := 7; i <= 15; i++ {
+		cache[i-7] = make([]byte, i)
+	}
+
+	var count uint64
+
 	for ip := startIP; ip <= endIP; ip++ {
 		if done {
 			return
 		}
 
-		ipString := byteToStringTable[byte(ip>>24)] + "." +
-			byteToStringTable[byte(ip>>16)] + "." +
-			byteToStringTable[byte(ip>>8)] + "." +
-			byteToStringTable[byte(ip)]
+		a := byteToByteArrayStringTable[byte(ip>>24)]
+		b := byteToByteArrayStringTable[byte(ip>>16)]
+		c := byteToByteArrayStringTable[byte(ip>>8)]
+		d := byteToByteArrayStringTable[byte(ip)]
+
+		l := len(a) + len(b) + len(c) + len(d) + 3
+		data := cache[l-7]
+		index := 0
+
+		addOctet(data, a, &index, true)
+		addOctet(data, b, &index, true)
+		addOctet(data, c, &index, true)
+		addOctet(data, d, &index, false)
 
 		h256.Reset()
-		h256.Write([]byte(ipString))
+		h256.Write(data)
 		hash := h256.Sum(nil)
 
-		if string(hash) == string(targetHash) {
-			fmt.Printf("\nFound! IP: %s\n", ipString)
+		if bytes.Equal(hash, targetHash) {
+			fmt.Printf("\nFound! IP: %s\n", string(data))
 			done = true
 			return
 		}
 
-		writer.processedIPs.Add(1)
+		count++
+
+		if count == 100000 {
+			writer.processedIPs.Add(count)
+			count = 0
+		}
 	}
 }
 
-var byteToStringTable = [256]string{}
+func addOctet(dst, src []byte, index *int, period bool) {
+	for i := 0; i < len(src); i++ {
+		dst[*index] = src[i]
+		*index++
+	}
+
+	if period {
+		dst[*index] = byte('.')
+		*index++
+	}
+}
+
+var byteToByteArrayStringTable = [256][]byte{}
 
 func init() {
 	for i := 0; i < 256; i++ {
-		byteToStringTable[i] = strconv.Itoa(i)
+		byteToByteArrayStringTable[i] = []byte(strconv.Itoa(i))
 	}
 }
