@@ -24,6 +24,10 @@ Author: [marvin](https://github.com/marvintheskid)
 
 Author: [Amplitudes](https://github.com/amplitudesxd)
 
+### Common Lisp
+
+Author: [faszkany](https://github.com/faszkany) + [Hal Abelson](https://www.csail.mit.edu/person/hal-abelson)
+
 ## Contributing
 
 If you would like to contribute, feel free. Pull requests are warmly welcome. We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages.
