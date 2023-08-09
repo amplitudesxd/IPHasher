@@ -74,7 +74,7 @@ async fn main() -> Result<()> {
                         ip >> 8 & 0xff,
                         ip & 0xff
                     );
-                    println!("Found matching IP: {}", ip);
+                    println!("\nFound matching IP: {}", ip);
                     unsafe { *done.0 = true };
                     break;
                 }
@@ -100,8 +100,8 @@ async fn main() -> Result<()> {
             let remaining_ips = total_ips - processed;
             let est_remaining_secs = remaining_ips as f64 / ips_per_sec;
 
-            println!(
-                "{}/{} IPs | {:.2} IPs/sec | Progress: {:.2}% | ETA: {:.2}s | Elapsed: {:.2}s",
+            print!(
+                "\r{}/{} IPs | {:.2} IPs/sec | Progress: {:.2}% | ETA: {:.2}s | Elapsed: {:.2}s             ",
                 processed,
                 total_ips,
                 ips_per_sec,
