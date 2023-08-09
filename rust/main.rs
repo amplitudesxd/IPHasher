@@ -1,15 +1,18 @@
-use std::{
-    env::args,
-    sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc,
-    },
-    time::Instant,
-};
+use std::{env::args, sync::Arc, time::Instant};
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
 use tokio::time::{sleep, Duration};
+
+struct U64Ptr(*mut u64);
+
+unsafe impl Sync for U64Ptr {}
+unsafe impl Send for U64Ptr {}
+
+struct BoolPtr(*mut bool);
+
+unsafe impl Sync for BoolPtr {}
+unsafe impl Send for BoolPtr {}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -27,23 +30,25 @@ async fn main() -> Result<()> {
     let mut tasks = vec![];
 
     let now = Instant::now();
-    let processed = Arc::new(AtomicU64::new(0));
-    let done = Arc::new(AtomicBool::new(false));
+
+    let mut u64_ctr = 0u64;
+    let mut bool_ctr = false;
+    let processed = Arc::new(U64Ptr(&mut u64_ctr as *mut u64));
+    let done = Arc::new(BoolPtr(&mut bool_ctr as *mut bool));
 
     for _ in 0..cpus {
         let start_ip = ip;
         let end_ip = ip + step_size - 1;
 
-        let hash = hash.clone();
         let processed = processed.clone();
         let done = done.clone();
-
+        let hash = hash.clone();
         let task = tokio::spawn(async move {
             let mut hasher = Sha256::new();
             let mut data = vec![];
 
-            for ip in start_ip..=end_ip {
-                if ip % 1000000 == 0 && done.load(Ordering::Relaxed) {
+            for (idx, ip) in (start_ip..=end_ip).enumerate() {
+                if idx % 1000000 == 0 && unsafe { *done.0 } {
                     break;
                 }
 
@@ -70,11 +75,15 @@ async fn main() -> Result<()> {
                         ip & 0xff
                     );
                     println!("Found matching IP: {}", ip);
-                    done.store(true, Ordering::Relaxed);
+                    unsafe { *done.0 = true };
                     break;
                 }
 
-                processed.fetch_add(1, Ordering::Relaxed);
+                if idx % 100000 == 0 {
+                    unsafe {
+                        *processed.0 += 100000;
+                    }
+                }
             }
         });
         tasks.push(task);
@@ -82,10 +91,9 @@ async fn main() -> Result<()> {
         ip += step_size;
     }
 
-    let processed = processed.clone();
     tokio::spawn(async move {
         loop {
-            let processed = processed.load(Ordering::Relaxed);
+            let processed = unsafe { *processed.0 };
             let ips_per_sec = processed as f64 / now.elapsed().as_secs_f64();
 
             let progress = processed as f64 / total_ips as f64 * 100.0;
@@ -102,7 +110,7 @@ async fn main() -> Result<()> {
                 now.elapsed().as_secs_f64()
             );
 
-            if done.load(Ordering::Relaxed) {
+            if unsafe { *done.0 } {
                 break;
             }
 
