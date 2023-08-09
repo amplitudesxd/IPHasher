@@ -18,7 +18,7 @@ Author: [vaperion](https://github.com/vaperion)
 
 ### Java
 
-Author: [vaperion](https://github.com/marvintheskid)
+Author: [marvin](https://github.com/marvintheskid)
 
 ## Contributing
 
