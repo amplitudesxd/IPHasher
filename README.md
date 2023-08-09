@@ -16,6 +16,10 @@ Author: [Amplitudes](https://github.com/amplitudesxd)
 
 Author: [vaperion](https://github.com/vaperion)
 
+### Java
+
+Author: [vaperion](https://github.com/marvintheskid)
+
 ## Contributing
 
 If you would like to contribute, feel free. Pull requests are warmly welcome. We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages.
