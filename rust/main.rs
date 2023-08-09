@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
             let mut data = vec![];
 
             for (idx, ip) in (start_ip..=end_ip).enumerate() {
-                if idx % 1000000 == 0 && unsafe { *done.0 } {
+                if idx != 0 && idx % 1000000 == 0 && unsafe { *done.0 } {
                     break;
                 }
 
@@ -79,7 +79,7 @@ async fn main() -> Result<()> {
                     break;
                 }
 
-                if idx % 100000 == 0 {
+                if idx != 0 && idx % 100000 == 0 {
                     unsafe {
                         *processed.0 += 100000;
                     }
