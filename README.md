@@ -32,6 +32,10 @@ Author: [faszkany](https://github.com/faszkany) + [Hal Abelson](https://www.csai
 
 Author: [SunStorm](https://github.com/MrExplode)
 
+### Visual C++
+
+Author: [SunStorm](https://github.com/MrExplode)
+
 ## Contributing
 
 If you would like to contribute, feel free. Pull requests are warmly welcome. We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages.
