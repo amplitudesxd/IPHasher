@@ -1,19 +1,19 @@
 package solver;
 
-import com.amazon.corretto.crypto.provider.AmazonCorrettoCryptoProvider;
-
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Main {
     public static final ScheduledExecutorService SCHEDULED = Executors.newScheduledThreadPool(1);
-    public static final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     public static final AtomicLong COUNTER = new AtomicLong(0);
     public static final List<Solver> SOLVERS = new ArrayList<>();
     public static final long MIN_IP_ADDRESS = 0x00000000L;
@@ -23,27 +23,9 @@ public class Main {
     public static final Instant NOW;
 
     static {
-        if (Boolean.getBoolean("enableACCP")) {
-            AmazonCorrettoCryptoProvider.install();
-            try {
-                if (MessageDigest.getInstance("SHA-256").getProvider().getName().equals(AmazonCorrettoCryptoProvider.PROVIDER_NAME)) {
-                    System.out.println("Successfully installed ACCP.");
-                } else {
-                    throw new RuntimeException(
-                        "An error happened during the initialization of ACCP, falling back to the default provider",
-                        AmazonCorrettoCryptoProvider.INSTANCE.getLoadingError()
-                    );
-                }
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        } else {
-            System.out.println("ACCP is disabled, using default provider");
-        }
-
         ARRAY = new byte[256][];
         for (int i = 0; i < 256; i++) {
-            ARRAY[i] = String.valueOf(i).getBytes(StandardCharsets.UTF_8);
+            ARRAY[i] = Integer.toString(i).getBytes(StandardCharsets.US_ASCII);
         }
         NOW = Instant.now();
     }
@@ -57,6 +39,7 @@ public class Main {
 
         byte[] bytes = HexFormat.of().parseHex(args[0]);
         int threads = Integer.getInteger("threads", Runtime.getRuntime().availableProcessors());
+        boolean useIntrinsics = !Boolean.getBoolean("noIntrinsics");
         System.out.println("Searching for: " + args[0]);
         System.out.println(" * Threads: " + threads);
 
@@ -68,9 +51,11 @@ public class Main {
             long start = ip;
             long end = ip + step;
 
-            Solver solver = new Solver(bytes, start, end);
+            Solver solver = new Solver(bytes, start, end, useIntrinsics);
             SOLVERS.add(solver);
-            EXECUTOR.execute(solver);
+            Thread t = new Thread(solver);
+            t.setPriority(Thread.NORM_PRIORITY);
+            t.start();
             ip += step;
         }
 
@@ -96,91 +81,121 @@ public class Main {
     public static class Solver implements Runnable {
         private final long start;
         private final long end;
-        private final MessageDigest digest;
         private final byte[] bytes;
-        private byte[] address;
+        private final boolean useIntrinsics;
         private long lastReport;
         private long progress;
 
-        public Solver(byte[] bytes, long start, long end) {
+        private final byte[] b7 = SHA2.buffer(7);
+        private final byte[] b8 = SHA2.buffer(8);
+        private final byte[] b9 = SHA2.buffer(9);
+        private final byte[] b10 = SHA2.buffer(10);
+        private final byte[] b11 = SHA2.buffer(11);
+        private final byte[] b12 = SHA2.buffer(12);
+        private final byte[] b13 = SHA2.buffer(13);
+        private final byte[] b14 = SHA2.buffer(14);
+        private final byte[] b15 = SHA2.buffer(15);
+
+        public Solver(byte[] bytes, long start, long end, boolean useIntrinsics) {
             this.bytes = bytes;
             this.start = start;
             this.end = end;
-            this.address = new byte[4 + 3]; // 4 chars + 3 dots
+            this.useIntrinsics = useIntrinsics;
             this.lastReport = 0;
             this.progress = 0;
+        }
 
-            try {
-                this.digest = MessageDigest.getInstance("SHA-256");
-            } catch (NoSuchAlgorithmException e) {
-                throw new RuntimeException(e);
-            }
+        private byte[] buf(int size) {
+            return switch (size) {
+                case 7 -> b7;
+                case 8 -> b8;
+                case 9 -> b9;
+                case 10 -> b10;
+                case 11 -> b11;
+                case 12 -> b12;
+                case 13 -> b13;
+                case 14 -> b14;
+                case 15 -> b15;
+                default -> null;
+            };
         }
 
         @Override
         public void run() {
-            for (long addr = start; addr < end; addr++) {
-                byte size = 3; // 3 dots
-
-                int n1 = ((byte) (addr >> 24)) & 0xFF;
-                int n2 = ((byte) (addr >> 16)) & 0xFF;
-                int n3 = ((byte) (addr >> 8)) & 0xFF;
-                int n4 = ((byte) addr) & 0xFF;
-
-                byte n1s = 1;
-                byte n2s = 1;
-                byte n3s = 1;
-                byte n4s = 1;
-
-                if (n1 >= 100) n1s++;
-                if (n1 >= 10) n1s++;
-
-                if (n2 >= 100) n2s++;
-                if (n2 >= 10) n2s++;
-
-                if (n3 >= 100) n3s++;
-                if (n3 >= 10) n3s++;
-
-                if (n4 >= 100) n4s++;
-                if (n4 >= 10) n4s++;
-
-                size += n1s + n2s + n3s + n4s;
-                if (size != this.address.length) {
-                    this.address = new byte[size];
-                }
-
-                byte i = 0;
-
-                byte[] a1 = ARRAY[n1];
-                byte[] a2 = ARRAY[n2];
-                byte[] a3 = ARRAY[n3];
-                byte[] a4 = ARRAY[n4];
-
-                System.arraycopy(a1, 0, this.address, i, n1s);
-                i += n1s;
-                this.address[i++] = DOT;
-
-                System.arraycopy(a2, 0, this.address, i, n2s);
-                i += n2s;
-                this.address[i++] = DOT;
-
-                System.arraycopy(a3, 0, this.address, i, n3s);
-                i += n3s;
-                this.address[i++] = DOT;
-
-                System.arraycopy(a4, 0, this.address, i, n4s);
-
-                if (Arrays.equals(this.bytes, this.digest.digest(this.address))) {
-                    System.out.println("Found!: " + new String(this.address));
-                    printProgressBar();
-                    SCHEDULED.shutdown();
-                    EXECUTOR.shutdown();
-                    System.exit(0);
-                    break;
-                }
-
+            SHA2 sha2;
+            if (useIntrinsics) {
+                sha2 = new SHA2WithIntrinsics();
+            } else {
+                sha2 = new SHA2NoIntrinsics();
+            }
+            byte[] out = new byte[32];
+            byte[] bytes = this.bytes;
+            long start = this.start;
+            long end = this.end;
+            byte[][] ARRAY = Main.ARRAY;
+            int count = (int) (end - start);
+            while (count-- != 0) {
+                process(sha2, out, bytes, start, ARRAY, count);
                 this.progress++;
             }
+        }
+
+        private void process(SHA2 sha2, byte[] out, byte[] bytes, long start, byte[][] ARRAY, int count) {
+            int size = 7; // 3 dots + 4 ints
+
+            long addr = start + count;
+            int n1 = ((byte) (addr >> 24)) & 0xFF;
+            int n2 = ((byte) (addr >> 16)) & 0xFF;
+            int n3 = ((byte) (addr >> 8)) & 0xFF;
+            int n4 = ((byte) addr) & 0xFF;
+
+            if (n1 >= 100) size++;
+            if (n1 >= 10) size++;
+
+            if (n2 >= 100) size++;
+            if (n2 >= 10) size++;
+
+            if (n3 >= 100) size++;
+            if (n3 >= 10) size++;
+
+            if (n4 >= 100) size++;
+            if (n4 >= 10) size++;
+
+            int i = 0;
+
+            byte[] address = buf(size);
+            byte[] a1 = ARRAY[n1];
+            byte[] a2 = ARRAY[n2];
+            byte[] a3 = ARRAY[n3];
+            byte[] a4 = ARRAY[n4];
+
+            i = putOctet(address, i, a1);
+            address[i++] = DOT;
+            i = putOctet(address, i, a2);
+            address[i++] = DOT;
+            i = putOctet(address, i, a3);
+            address[i++] = DOT;
+            putOctet(address, i, a4);
+
+            sha2.digest(address, size, out);
+            if (Arrays.equals(bytes, out)) {
+                System.out.println("Found!: " + new String(address, 0, size));
+                printProgressBar();
+                System.exit(0);
+            }
+        }
+
+        private static int putOctet(byte[] address, int i, byte[] a) {
+            int len = a.length;
+            switch (len) {
+                case 3:
+                    address[i + 2] = a[2];
+                case 2:
+                    address[i + 1] = a[1];
+                default:
+                    address[i] = a[0];
+            }
+            return i + len;
         }
 
         public void report() {
