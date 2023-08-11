@@ -1,0 +1,10 @@
+﻿#pragma once
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <thread>
+#include <vector>
+#include <chrono>
+#include <string>
+#include <cstring>
+#include <locale>
