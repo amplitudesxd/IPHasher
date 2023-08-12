@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
     let processed = Arc::new(U64Ptr(&mut u64_ctr as *mut u64));
     let done = Arc::new(BoolPtr(&mut bool_ctr as *mut bool));
 
-    for _ in 0..cpus {
+    for c in 0..cpus {
         let start_ip = ip;
         let end_ip = if c == cpus - 1 {
             max_ip
