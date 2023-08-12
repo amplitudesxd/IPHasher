@@ -49,17 +49,11 @@ final class SHA2WithIntrinsics extends SHA2 {
     }
 
     @Override
-    void implDigest(int[] W, int[] state, byte[] in, int inLen, byte[] out) {
-        int bitsProcessed = inLen << 3;
-
-        SHA2.i2bBig4(0, in, 56);
-        SHA2.i2bBig4(bitsProcessed, in, 60);
+    void implCompress0(int[] W, int[] state, byte[] buf) {
         try {
-            MH_COMPRESS.invokeExact(impl, in, 0);
+            MH_COMPRESS.invokeExact(impl, buf, 0);
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
-
-        SHA2.i2bBig(state, out);
     }
 }
