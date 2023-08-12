@@ -4,7 +4,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -47,11 +46,12 @@ public class Main {
         long ip = MIN_IP_ADDRESS;
         long step = total / threads;
 
+        int[] hashState = SHA2.toState(bytes);
         for (int i = 0; i < threads; i++) {
             long start = ip;
             long end = ip + step;
 
-            Solver solver = new Solver(bytes, start, end, useIntrinsics);
+            Solver solver = new Solver(hashState, start, end, useIntrinsics);
             SOLVERS.add(solver);
             Thread t = new Thread(solver);
             t.setPriority(Thread.NORM_PRIORITY);
@@ -81,7 +81,7 @@ public class Main {
     public static class Solver implements Runnable {
         private final long start;
         private final long end;
-        private final byte[] bytes;
+        private final int[] hash;
         private final boolean useIntrinsics;
         private long lastReport;
         private long progress;
@@ -96,8 +96,8 @@ public class Main {
         private final byte[] b14 = SHA2.buffer(14);
         private final byte[] b15 = SHA2.buffer(15);
 
-        public Solver(byte[] bytes, long start, long end, boolean useIntrinsics) {
-            this.bytes = bytes;
+        public Solver(int[] hash, long start, long end, boolean useIntrinsics) {
+            this.hash = hash;
             this.start = start;
             this.end = end;
             this.useIntrinsics = useIntrinsics;
@@ -128,46 +128,36 @@ public class Main {
             } else {
                 sha2 = new SHA2NoIntrinsics();
             }
-            byte[] out = new byte[32];
-            byte[] bytes = this.bytes;
+            int[] out = sha2.state;
+            int[] hash = this.hash;
             long start = this.start;
             long end = this.end;
             byte[][] ARRAY = Main.ARRAY;
             int count = (int) (end - start);
             while (count-- != 0) {
-                process(sha2, out, bytes, start, ARRAY, count);
+                process(sha2, out, hash, start, ARRAY, count);
                 this.progress++;
             }
         }
 
-        private void process(SHA2 sha2, byte[] out, byte[] bytes, long start, byte[][] ARRAY, int count) {
-            int size = 7; // 3 dots + 4 ints
-
+        private void process(SHA2 sha2, int[] out, int[] hash, long start, byte[][] ARRAY, int count) {
             long addr = start + count;
-            int n1 = ((byte) (addr >> 24)) & 0xFF;
-            int n2 = ((byte) (addr >> 16)) & 0xFF;
-            int n3 = ((byte) (addr >> 8)) & 0xFF;
-            int n4 = ((byte) addr) & 0xFF;
-
-            if (n1 >= 100) size++;
-            if (n1 >= 10) size++;
-
-            if (n2 >= 100) size++;
-            if (n2 >= 10) size++;
-
-            if (n3 >= 100) size++;
-            if (n3 >= 10) size++;
-
-            if (n4 >= 100) size++;
-            if (n4 >= 10) size++;
+            byte[] a1, a2, a3, a4;
+            {
+                int n1 = ((byte) (addr >> 24)) & 0xFF;
+                int n2 = ((byte) (addr >> 16)) & 0xFF;
+                int n3 = ((byte) (addr >> 8)) & 0xFF;
+                int n4 = ((byte) addr) & 0xFF;
+                a1 = ARRAY[n1];
+                a2 = ARRAY[n2];
+                a3 = ARRAY[n3];
+                a4 = ARRAY[n4];
+            }
 
             int i = 0;
+            int size = 3 + a1.length + a2.length + a3.length + a4.length;
 
             byte[] address = buf(size);
-            byte[] a1 = ARRAY[n1];
-            byte[] a2 = ARRAY[n2];
-            byte[] a3 = ARRAY[n3];
-            byte[] a4 = ARRAY[n4];
 
             i = putOctet(address, i, a1);
             address[i++] = DOT;
@@ -177,12 +167,15 @@ public class Main {
             address[i++] = DOT;
             putOctet(address, i, a4);
 
-            sha2.digest(address, size, out);
-            if (Arrays.equals(bytes, out)) {
-                System.out.println("Found!: " + new String(address, 0, size));
-                printProgressBar();
-                System.exit(0);
+            sha2.digest(address, size);
+            for (int j = 0; j < 8; j++) {
+                if (hash[j] != out[j]) {
+                    return;
+                }
             }
+            System.out.println("Found!: " + new String(address, 0, size));
+            printProgressBar();
+            System.exit(0);
         }
 
         private static int putOctet(byte[] address, int i, byte[] a) {
