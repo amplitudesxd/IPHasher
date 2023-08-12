@@ -84,6 +84,12 @@ func main() {
 	for i := 0; i < cores; i++ {
 		wg.Add(1)
 		endIP := startIP + step - 1
+
+		// If the last goroutine, make sure to include the remaining IPs
+		if i == cores-1 {
+			endIP = maxIP
+		}
+
 		go processIPs(startIP, endIP, targetHash, writer)
 		startIP += step
 	}
