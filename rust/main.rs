@@ -38,7 +38,11 @@ async fn main() -> Result<()> {
 
     for _ in 0..cpus {
         let start_ip = ip;
-        let end_ip = ip + step_size - 1;
+        let end_ip = if c == cpus - 1 {
+            max_ip
+        } else {
+            ip + step_size - 1
+        };
 
         let processed = processed.clone();
         let done = done.clone();
