@@ -36,6 +36,10 @@ Author: [SunStorm](https://github.com/MrExplode)
 
 Author: [SunStorm](https://github.com/MrExplode)
 
+### Ruby
+
+Author [jactain](https://github.com/jactain)
+
 ## Contributing
 
 If you would like to contribute, feel free. Pull requests are warmly welcome. We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages.
