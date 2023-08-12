@@ -6,6 +6,7 @@ import os
 
 done = multiprocessing.Value('b', False)
 
+
 class BarWriter:
     def __init__(self, total_ips):
         self.total_ips = total_ips
@@ -24,10 +25,12 @@ class BarWriter:
 
         print(f"{processed_ips}/{self.total_ips} IPs | {ips_per_sec:.2f} IPs/sec | Progress: {progress:.2f}% | ETA: {estimated_time_remaining:.2f} seconds | Elapsed: {time.time() - self.start_time:.2f} seconds", end='\r')
 
+
 def progressBarUpdater(writer):
     while not done.value:
         writer.update_progress_bar()
         time.sleep(0.1)
+
 
 def process_ips(start_ip, end_ip, target_hash, writer):
     global done
@@ -40,14 +43,14 @@ def process_ips(start_ip, end_ip, target_hash, writer):
         if done.value:
             return
 
-        a = bytes([ip >> 24])
-        b = bytes([(ip >> 16) & 0xFF])
-        c = bytes([(ip >> 8) & 0xFF])
-        d = bytes([ip & 0xFF])
+        a = ip >> 24
+        b = (ip >> 16) & 0xFF
+        c = (ip >> 8) & 0xFF
+        d = ip & 0xFF
 
-        data = b"%s.%s.%s.%s" % (a, b, c, d)
+        data = "%d.%d.%d.%d" % (a, b, c, d)
 
-        h256.update(data)
+        h256.update(data.encode())
         hash_result = h256.digest()
 
         if hash_result == target_hash:
@@ -62,6 +65,7 @@ def process_ips(start_ip, end_ip, target_hash, writer):
             with writer.processed_ips.get_lock():
                 writer.processed_ips.value += count
                 count = 0
+
 
 def main():
     if len(sys.argv) != 2:
@@ -82,13 +86,20 @@ def main():
     now = time.time()
 
     writer = BarWriter(total_ips)
-    progress_process = multiprocessing.Process(target=progressBarUpdater, args=(writer,))
+    progress_process = multiprocessing.Process(
+        target=progressBarUpdater, args=(writer,))
     progress_process.start()
 
     processes = []
-    for _ in range(cores):
+    for i in range(cores):
         end_ip = start_ip + step - 1
-        process = multiprocessing.Process(target=process_ips, args=(start_ip, end_ip, target_hash, writer))
+
+        # if it's the last process, give it the remaining IPs
+        if i == cores - 1:
+            end_ip = max_ip
+
+        process = multiprocessing.Process(
+            target=process_ips, args=(start_ip, end_ip, target_hash, writer))
         processes.append(process)
         process.start()
         start_ip += step
@@ -101,6 +112,7 @@ def main():
     progress_process.join()
 
     print("\nElapsed:", time.time() - now)
+
 
 if __name__ == "__main__":
     main()
