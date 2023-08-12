@@ -60,7 +60,13 @@ if (isMainThread) {
   const workers = [];
 
   for (let i = 0; i < cores; i++) {
-    const endIP = startIP + step - 1;
+    let endIP = startIP + step - 1;
+
+    // if it's the last worker, give it the remaining IPs
+    if (i === cores - 1) {
+      endIP = 0xffffffff;
+    }
+
     const workerPromise = new Promise((resolve, reject) => {
       const worker = new Worker(__filename, {
         workerData: { startIP, endIP, targetHash },
@@ -97,10 +103,9 @@ if (isMainThread) {
 
   const printProgressBar = () => {
     writer.update();
-    setTimeout(printProgressBar, 100);
   };
 
-  printProgressBar();
+  setInterval(printProgressBar, 100);
 } else {
   const { startIP, endIP, targetHash } = workerData;
 
