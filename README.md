@@ -38,9 +38,9 @@ Author: [SunStorm](https://github.com/MrExplode)
 
 ### Ruby
 
-Author [jactain](https://github.com/jactain)
+Author: [jactain](https://github.com/jactain)
 
 ## Contributing
 
 If you would like to contribute, feel free! Pull requests are warmly welcome. We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages.
-Make sure the program can find the IP `255.255.255.255` out of the hash `f45462bf3cd12ea2b347f32f6c4d0a0d36e01694de332b307af90d42951c5bd6`.
+Please ensure the program can find the IP `255.255.255.255` out of the hash `f45462bf3cd12ea2b347f32f6c4d0a0d36e01694de332b307af90d42951c5bd6`.
