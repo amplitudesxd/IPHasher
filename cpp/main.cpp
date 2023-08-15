@@ -1,8 +1,5 @@
 #include "hash/sha256.h"
 
-#include <emmintrin.h>
-#include <future>
-
 #include <cstring>
 #include <atomic>
 #include <thread>
@@ -11,10 +8,14 @@
 #include <iomanip>
 #include <vector>
 
+// match the first 10 bytes of the hash
+#define TARGET_BYTE_MATCH 10
+
+// increment the progress counter every 10,000,000 hashes
+#define PROGRESS_INCREMENT 10000000
+
 #define DIGEST_LENGTH 32
 #define MESSAGE_BLOCK_LENGTH 64
-
-#define PROGRESS_INCREMENT 10000000
 
 #if defined(__x86_64__) || defined(_M_X64) || \
     defined(i386) || defined(__i386__) || defined(__i386) || defined(_M_IX86)
@@ -38,7 +39,7 @@ namespace {
 		}
 	};
 
-	std::atomic<bool> completed(false);
+	alignas(std::hardware_destructive_interference_size) std::atomic<bool> completed(false);
 
 	// thanks SO
 	std::vector<unsigned char> from_hex(const std::string &hex) {
@@ -51,37 +52,27 @@ namespace {
 		return bytes;
 	}
 
-	// thanks SO
-	std::string to_hex(unsigned char *data, std::uint64_t len) {
-		std::stringstream ss;
-		ss << std::hex;
-
-		for (int i = 0; i < len; i++)
-			ss << std::setw(2) << std::setfill('0') << (int) data[i];
-
-		return ss.str();
-	}
-
 	void solve_range(
 			const char *TABLE[256],
-			const unsigned char *target,
+			const unsigned char target[TARGET_BYTE_MATCH],
 			std::uint64_t start,
 			std::uint64_t end,
 			std::atomic_uint32_t *progress) {
+
+		// IPs will fit in 1 block (:
+		unsigned char data[MESSAGE_BLOCK_LENGTH];
+		unsigned char digest[DIGEST_LENGTH];
+		uint32_t sha_state[8];
 
 		constexpr uint32_t BASE_SHA_STATE[8] = {
 				0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
 				0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 		};
 
-		unsigned char data[MESSAGE_BLOCK_LENGTH];
 		int nums[4];
 
-		unsigned char digest[DIGEST_LENGTH];
-		uint32_t sha_state[8];
-
 		for (std::uint64_t address = start; address < end; address++) {
-			if (completed)
+			if (address % PROGRESS_INCREMENT == 0 && completed.load(std::memory_order_relaxed))
 				return;
 
 			nums[0] = (unsigned char) (address >> 24) & 0xFF;
@@ -161,14 +152,12 @@ namespace {
 				data[total_len + 7 - i] = bit_len >> i * 8 & 0xFF;
 			}
 
-			// reset sha state
-			memcpy(sha_state, BASE_SHA_STATE, sizeof(BASE_SHA_STATE));
-
-			// IPs will fit in 1 block (:
 #ifdef ARCH_X86
+			sha256_init_x86(sha_state, BASE_SHA_STATE);
 			sha256_process_x86(sha_state, data);
 			sha256_final_x86(sha_state, digest);
 #else
+			memcpy(sha_state, BASE_SHA_STATE, sizeof(BASE_SHA_STATE));
 			sha256_process_arm(sha_state, data, MESSAGE_BLOCK_LENGTH);
 
 			for (int i = 0; i < 8; ++i) {
@@ -180,11 +169,11 @@ namespace {
 #endif
 
 			// not 100% accurate as we only compare the first 10 bytes of the hash (more efficient and should work fine)
-			if (memcmp(digest, target, 10) == 0) {
+			if (memcmp(digest, target, TARGET_BYTE_MATCH) == 0) {
 				completed = true;
 				data[idx] = '\0';
 
-				std::this_thread::sleep_for(std::chrono::seconds(1)); // i cba c:
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 				std::cout << "\rFound IP: " << (char *) data << std::endl;
 				return;
 			}
@@ -205,12 +194,14 @@ int main(int argc, char *argv[]) {
 
 	std::cout << "Brute forcing IP hash: " << argv[1] << std::endl;
 
+	const auto target = from_hex(argv[1]);
+
 	constexpr std::uint64_t MIN_IP = 0x00000000ULL;
 	constexpr std::uint64_t MAX_IP = 0xFFFFFFFFULL;
 
 	constexpr auto TOTAL = MAX_IP - MIN_IP + 2;
 
-	const std::uint32_t THREADS = std::thread::hardware_concurrency();
+	constexpr std::uint32_t THREADS = 32;//std::thread::hardware_concurrency();
 	const auto STEP = TOTAL / THREADS;
 
 	const char *TABLE[256];
@@ -219,27 +210,23 @@ int main(int argc, char *argv[]) {
 		sprintf((char *) TABLE[i], "%d", i);
 	}
 
-	const auto target = from_hex(argv[1]);
+	unsigned char target_trim[TARGET_BYTE_MATCH];
+	memcpy(target_trim, target.data(), TARGET_BYTE_MATCH);
 
 #ifdef _MSC_VER
-	// god msvc is ass
-	auto *threads = new std::unique_ptr<std::thread>[THREADS];
 	auto *progress = new std::atomic_uint32_t[THREADS];
+	auto *threads = new std::unique_ptr<std::thread>[THREADS];
 #else
-	std::unique_ptr<std::thread> threads[THREADS];
 	std::atomic_uint32_t progress[THREADS];
+	std::unique_ptr<std::thread> threads[THREADS];
 #endif
-
-	for (int i = 0; i < THREADS; i++) {
-		progress[i].store(0);
-	}
 
 	auto ip = MIN_IP;
 	for (std::uint32_t i = 0; i < THREADS; i++) {
 		auto start = ip;
 		auto end = ip + STEP;
 
-		threads[i] = std::make_unique<std::thread>(solve_range, TABLE, target.data(), start, end, &progress[i]);
+		threads[i] = std::make_unique<std::thread>(solve_range, TABLE, target_trim, start, end, &progress[i]);
 
 		ip += STEP;
 	}

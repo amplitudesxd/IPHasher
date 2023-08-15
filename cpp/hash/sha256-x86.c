@@ -21,7 +21,15 @@ typedef UINT32 uint32_t;
 typedef UINT8 uint8_t;
 #endif
 
-extern void sha256_final_x86(uint32_t *state, unsigned char *digest) {
+extern __forceinline void sha256_init_x86(uint32_t state[8], const uint32_t base[8]) {
+	__m128i reg1 = _mm_load_si128((__m128i*) &base[0]);
+	__m128i reg2 = _mm_load_si128((__m128i*) &base[4]);
+
+	_mm_store_si128((__m128i*) &state[0], reg1);
+	_mm_store_si128((__m128i*) &state[4], reg2);
+}
+
+extern __forceinline void sha256_final_x86(uint32_t *state, unsigned char *digest) {
 	__m128i vec = _mm_loadu_si128((__m128i *)state);
 	vec = _mm_shuffle_epi8(vec, _mm_setr_epi8(
 			3, 2, 1, 0,
