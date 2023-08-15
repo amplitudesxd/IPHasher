@@ -1,4 +1,7 @@
-#include "hash/hash.h"
+#include "hash/sha256.h"
+
+#include <emmintrin.h>
+#include <future>
 
 #include <cstring>
 #include <atomic>
@@ -8,7 +11,19 @@
 #include <iomanip>
 #include <vector>
 
+#define DIGEST_LENGTH 32
+#define MESSAGE_BLOCK_LENGTH 64
+
 #define PROGRESS_INCREMENT 10000000
+
+#if defined(__x86_64__) || defined(_M_X64) || \
+    defined(i386) || defined(__i386__) || defined(__i386) || defined(_M_IX86)
+#define ARCH_X86
+#elif defined(__ARM_ARCH_ISA_A64) && !defined(HASH_STD)
+#define ARCH_ARM
+#else
+#error "Unsupported architecture"
+#endif
 
 namespace {
 
@@ -54,9 +69,16 @@ namespace {
 			std::uint64_t end,
 			std::atomic_uint32_t *progress) {
 
-		unsigned char digest[DIGEST_LENGTH];
+		constexpr uint32_t BASE_SHA_STATE[8] = {
+				0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+				0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+		};
+
 		unsigned char data[MESSAGE_BLOCK_LENGTH];
 		int nums[4];
+
+		unsigned char digest[DIGEST_LENGTH];
+		uint32_t sha_state[8];
 
 		for (std::uint64_t address = start; address < end; address++) {
 			if (completed)
@@ -68,42 +90,102 @@ namespace {
 			nums[3] = (unsigned char) address & 0xFF;
 
 			int idx = 0;
-			for (int i = 0; i < 4; i++) {
-				if (i != 0)
-					data[idx++] = '.';
 
-				auto *d = TABLE[nums[i]];
-				for (int j = 0; j < 3; j++) {
-					auto c = d[j];
-					if (c == '\0')
-						break;
+			// process the octets without looping results in a minor speedup (although ugly)
+			const char* d = TABLE[nums[0]];
 
-					data[idx++] = c;
-				}
+			if (d[2]) {
+				data[idx++] = d[0];
+				data[idx++] = d[1];
+				data[idx++] = d[2];
+			} else if (d[1]) {
+				data[idx++] = d[0];
+				data[idx++] = d[1];
+			} else {
+				data[idx++] = d[0];
+			}
+
+			data[idx++] = '.';
+			d = TABLE[nums[1]];
+
+			if (d[2]) {
+				data[idx++] = d[0];
+				data[idx++] = d[1];
+				data[idx++] = d[2];
+			} else if (d[1]) {
+				data[idx++] = d[0];
+				data[idx++] = d[1];
+			} else {
+				data[idx++] = d[0];
+			}
+
+			data[idx++] = '.';
+			d = TABLE[nums[2]];
+
+			if (d[2]) {
+				data[idx++] = d[0];
+				data[idx++] = d[1];
+				data[idx++] = d[2];
+			} else if (d[1]) {
+				data[idx++] = d[0];
+				data[idx++] = d[1];
+			} else {
+				data[idx++] = d[0];
+			}
+
+			data[idx++] = '.';
+			d = TABLE[nums[3]];
+
+			if (d[2]) {
+				data[idx++] = d[0];
+				data[idx++] = d[1];
+				data[idx++] = d[2];
+			} else if (d[1]) {
+				data[idx++] = d[0];
+				data[idx++] = d[1];
+			} else {
+				data[idx++] = d[0];
 			}
 
 			// block padding
 			data[idx] = 0x80;
 
-			std::uint64_t total_len = idx + 1;
+			std::uint32_t total_len = idx + 1;
 			total_len += 56 - total_len;
 
 			memset(data + idx + 1, 0, total_len);
 
 			std::uint64_t bit_len = idx * 8;
-			for (size_t i = 0; i < 8; ++i) {
+
+			for (int i = 0; i < 8; ++i) {
 				data[total_len + 7 - i] = bit_len >> i * 8 & 0xFF;
 			}
 
-			// IPs will fit in 1 block (:
-			hash::sha256(data, MESSAGE_BLOCK_LENGTH, digest);
+			// reset sha state
+			memcpy(sha_state, BASE_SHA_STATE, sizeof(BASE_SHA_STATE));
 
-			if (memcmp(digest, target, DIGEST_LENGTH) == 0) {
+			// IPs will fit in 1 block (:
+#ifdef ARCH_X86
+			sha256_process_x86(sha_state, data);
+			sha256_final_x86(sha_state, digest);
+#else
+			sha256_process_arm(sha_state, data, MESSAGE_BLOCK_LENGTH);
+
+			for (int i = 0; i < 8; ++i) {
+				digest[i * 4] = (sha_state[i] >> 24) & 0xff;
+				digest[i * 4 + 1] = (sha_state[i] >> 16) & 0xff;
+				digest[i * 4 + 2] = (sha_state[i] >> 8) & 0xff;
+				digest[i * 4 + 3] = sha_state[i] & 0xff;
+			}
+#endif
+
+			// not 100% accurate as we only compare the first 10 bytes of the hash (more efficient and should work fine)
+			if (memcmp(digest, target, 10) == 0) {
 				completed = true;
 				data[idx] = '\0';
 
 				std::this_thread::sleep_for(std::chrono::seconds(1)); // i cba c:
-				std::cout << "\rFound IP: " << (char *) data << " (" << to_hex(digest, DIGEST_LENGTH) << ")" << std::endl;
+				std::cout << "\rFound IP: " << (char *) data << std::endl;
 				return;
 			}
 

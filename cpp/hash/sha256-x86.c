@@ -21,9 +21,29 @@ typedef UINT32 uint32_t;
 typedef UINT8 uint8_t;
 #endif
 
+extern void sha256_final_x86(uint32_t *state, unsigned char *digest) {
+	__m128i vec = _mm_loadu_si128((__m128i *)state);
+	vec = _mm_shuffle_epi8(vec, _mm_setr_epi8(
+			3, 2, 1, 0,
+			7, 6, 5, 4,
+			11, 10, 9, 8,
+			15, 14, 13, 12
+	));
+	_mm_storeu_si128((__m128i *)digest, vec);
+
+	vec = _mm_loadu_si128((__m128i *)(state + 4));
+	vec = _mm_shuffle_epi8(vec, _mm_setr_epi8(
+			3, 2, 1, 0,
+			7, 6, 5, 4,
+			11, 10, 9, 8,
+			15, 14, 13, 12
+	));
+	_mm_storeu_si128((__m128i *)(digest + 16), vec);
+}
+
 /* Process multiple blocks. The caller is responsible for setting the initial */
 /*  state, and the caller is responsible for padding the final block.        */
-extern void sha256_process_x86(uint32_t state[8], const uint8_t data[], uint32_t length)
+extern void sha256_process_x86(uint32_t state[8], const uint8_t data[]/*, uint32_t length*/)
 {
 	__m128i STATE0, STATE1;
 	__m128i MSG, TMP;
@@ -35,14 +55,14 @@ extern void sha256_process_x86(uint32_t state[8], const uint8_t data[], uint32_t
 	TMP = _mm_loadu_si128((const __m128i*) &state[0]);
 	STATE1 = _mm_loadu_si128((const __m128i*) &state[4]);
 
-
 	TMP = _mm_shuffle_epi32(TMP, 0xB1);          /* CDAB */
 	STATE1 = _mm_shuffle_epi32(STATE1, 0x1B);    /* EFGH */
 	STATE0 = _mm_alignr_epi8(TMP, STATE1, 8);    /* ABEF */
 	STATE1 = _mm_blend_epi16(STATE1, TMP, 0xF0); /* CDGH */
 
-	while (length >= 64)
-	{
+//	shouldn't need this
+//	while (length >= 64)
+//	{
 		/* Save current state */
 		ABEF_SAVE = STATE0;
 		CDGH_SAVE = STATE1;
@@ -203,9 +223,9 @@ extern void sha256_process_x86(uint32_t state[8], const uint8_t data[], uint32_t
 		STATE0 = _mm_add_epi32(STATE0, ABEF_SAVE);
 		STATE1 = _mm_add_epi32(STATE1, CDGH_SAVE);
 
-		data += 64;
-		length -= 64;
-	}
+//		data += 64;
+//		length -= 64;
+//	}
 
 	TMP = _mm_shuffle_epi32(STATE0, 0x1B);       /* FEBA */
 	STATE1 = _mm_shuffle_epi32(STATE1, 0xB1);    /* DCHG */
