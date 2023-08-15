@@ -153,7 +153,7 @@ namespace {
 			}
 
 #ifdef ARCH_X86
-			sha256_init_x86(sha_state, BASE_SHA_STATE);
+//			sha256_init_x86(sha_state, BASE_SHA_STATE);
 			sha256_process_x86(sha_state, data);
 			sha256_final_x86(sha_state, digest);
 #else

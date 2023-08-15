@@ -53,20 +53,25 @@ extern __forceinline void sha256_final_x86(uint32_t *state, unsigned char *diges
 /*  state, and the caller is responsible for padding the final block.        */
 extern void sha256_process_x86(uint32_t state[8], const uint8_t data[]/*, uint32_t length*/)
 {
-	__m128i STATE0, STATE1;
+//	__m128i STATE0, STATE1;
 	__m128i MSG, TMP;
 	__m128i MSG0, MSG1, MSG2, MSG3;
 	__m128i ABEF_SAVE, CDGH_SAVE;
 	const __m128i MASK = _mm_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
 
 	/* Load initial values */
-	TMP = _mm_loadu_si128((const __m128i*) &state[0]);
-	STATE1 = _mm_loadu_si128((const __m128i*) &state[4]);
+	// we can pre-compute this as 'state' is always the same for this application
+	// it only applies to this application due to the fact we don't re-hash an already hashed state, we do one pass and that is all - so the values are static
+	__m128i STATE0 = _mm_set_epi64x(0x6a09e667bb67ae85ULL, 0x510e527f9b05688cULL);
+	__m128i STATE1 = _mm_set_epi64x(0x3c6ef372a54ff53aULL, 0x1f83d9ab5be0cd19ULL);
 
-	TMP = _mm_shuffle_epi32(TMP, 0xB1);          /* CDAB */
-	STATE1 = _mm_shuffle_epi32(STATE1, 0x1B);    /* EFGH */
-	STATE0 = _mm_alignr_epi8(TMP, STATE1, 8);    /* ABEF */
-	STATE1 = _mm_blend_epi16(STATE1, TMP, 0xF0); /* CDGH */
+//	TMP = _mm_loadu_si128((const __m128i*) &state[0]);
+//	STATE1 = _mm_loadu_si128((const __m128i*) &state[4]);
+
+//	TMP = _mm_shuffle_epi32(TMP, 0xB1);          /* CDAB */
+//	STATE1 = _mm_shuffle_epi32(STATE1, 0x1B);    /* EFGH */
+//	STATE0 = _mm_alignr_epi8(TMP, STATE1, 8);    /* ABEF */
+//	STATE1 = _mm_blend_epi16(STATE1, TMP, 0xF0); /* CDGH */
 
 //	shouldn't need this
 //	while (length >= 64)
