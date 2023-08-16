@@ -32,13 +32,21 @@ Author: [faszkany](https://github.com/faszkany) + [Hal Abelson](https://www.csai
 
 Author: [SunStorm](https://github.com/MrExplode)
 
-### Visual C++
+### Visual C++ (legacy)
 
 Author: [SunStorm](https://github.com/MrExplode)
 
 ### Ruby
 
 Author: [jactain](https://github.com/jactain)
+
+### C++
+
+Author: [Erouax](https://github.com/Erouax)
+
+### GPU (OpenCL)
+
+Author: [Erouax](https://github.com/Erouax)
 
 ## Contributing
 
