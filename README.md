@@ -48,6 +48,10 @@ Author: [Erouax](https://github.com/Erouax)
 
 Author: [Erouax](https://github.com/Erouax)
 
+### DB (C++ RocksDB)
+
+Author: [invakid404](https://github.com/invakid404)
+
 ## Contributing
 
 If you would like to contribute, feel free! Pull requests are warmly welcome. We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages.

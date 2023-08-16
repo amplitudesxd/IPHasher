@@ -1,0 +1,4 @@
+[submodule "db/rocksdb"]
+	path = db/rocksdb
+	url = https://github.com/facebook/rocksdb
+	shallow = true
